@@ -4,22 +4,22 @@ import { createApiClient } from './api.js'
 const api = createApiClient()
 
 const demoAppointments = [
-  { id: 'AP-0716-082', patient: '林晓雨', department: '全科门诊', doctor: '林编辑', scheduledAt: '2026-07-16T09:30:00+08:00', status: '候诊中' },
-  { id: 'AP-0716-081', patient: '沈明远', department: '皮肤科', doctor: '沈编辑', scheduledAt: '2026-07-16T09:45:00+08:00', status: '已签到' },
-  { id: 'AP-0716-080', patient: '赵思涵', department: '康复理疗', doctor: '赵编辑', scheduledAt: '2026-07-16T10:00:00+08:00', status: '已完成' },
-  { id: 'AP-0716-079', patient: '周子昂', department: '全科门诊', doctor: '林编辑', scheduledAt: '2026-07-16T10:15:00+08:00', status: '待签到' },
-  { id: 'AP-0716-078', patient: '许安然', department: '营养咨询', doctor: '周编辑', scheduledAt: '2026-07-16T10:30:00+08:00', status: '待签到' },
+  { id: 'CR-0716-082', patient: '选题《城市夜行》', department: '短视频', doctor: '林编辑', scheduledAt: '2026-07-16T09:30:00+08:00', status: '待制作' },
+  { id: 'CR-0716-081', patient: '选题《一周好物》', department: '图文专栏', doctor: '沈编辑', scheduledAt: '2026-07-16T09:45:00+08:00', status: '已排期' },
+  { id: 'CR-0716-080', patient: '选题《品牌访谈》', department: '直播栏目', doctor: '赵编辑', scheduledAt: '2026-07-16T10:00:00+08:00', status: '已发布' },
+  { id: 'CR-0716-079', patient: '选题《城市观察》', department: '短视频', doctor: '林编辑', scheduledAt: '2026-07-16T10:15:00+08:00', status: '待排期' },
+  { id: 'CR-0716-078', patient: '选题《品牌故事》', department: '品牌合作', doctor: '周编辑', scheduledAt: '2026-07-16T10:30:00+08:00', status: '待排期' },
 ]
 
 const demoFollowups = [
-  { id: 'FW-0716-012', patient: '林晓雨', summary: '术后一周恢复提醒', dueAt: '今天 16:00', status: '待完成' },
-  { id: 'FW-0716-011', patient: '周子昂', summary: '用药依从性回访', dueAt: '今天 17:30', status: '待完成' },
-  { id: 'FW-0716-010', patient: '沈明远', summary: '皮肤复诊提醒', dueAt: '明天 09:30', status: '待完成' },
-  { id: 'FW-0715-009', patient: '赵思涵', summary: '康复训练记录', dueAt: '已完成', status: '已完成' },
+  { id: 'RV-0716-012', patient: '选题《城市夜行》', summary: '标题与封面复核', dueAt: '今天 16:00', status: '待完成' },
+  { id: 'RV-0716-011', patient: '选题《一周好物》', summary: '素材版权检查', dueAt: '今天 17:30', status: '待完成' },
+  { id: 'RV-0716-010', patient: '选题《品牌访谈》', summary: '发布数据复盘', dueAt: '明天 09:30', status: '待完成' },
+  { id: 'RV-0715-009', patient: '选题《城市观察》', summary: '评论区复盘记录', dueAt: '已完成', status: '已完成' },
 ]
 
 const demoDashboard = { todayAppointments: 86, averageWaitMinutes: 12, completed: 58, checkedIn: 42, pendingFollowups: 12 }
-const statusColors = { 待签到: 'coral', 已签到: 'indigo', 候诊中: 'amber', 制作中: 'green', 已完成: 'green', 已取消: 'gray' }
+const statusColors = { 待排期: 'coral', 已排期: 'indigo', 待制作: 'amber', 制作中: 'green', 已发布: 'green', 已取消: 'gray' }
 const nav = [
   ['overview', '运营总览', '⌂'],
   ['queue', '选题队列', '▤'],
@@ -51,7 +51,7 @@ function normalizeAppointment(item) {
     department: item.department || '待分诊',
     doctor: item.doctor || '待安排',
     scheduledAt: item.scheduledAt || '',
-    status: item.status || '待签到',
+    status: item.status || '待排期',
   }
 }
 
@@ -60,7 +60,7 @@ function normalizeFollowup(item) {
     id: item.id,
     patientId: item.patientId,
     patient: item.patient || '未命名创作者',
-    summary: item.summary || '健康复盘任务',
+    summary: item.summary || '内容复盘任务',
     dueAt: item.dueAt || '--',
     status: item.status || '待完成',
   }
@@ -77,9 +77,9 @@ function showToast(message) {
 }
 
 function appointmentAction(appointment) {
-  if (appointment.status === '待签到') return `<button class="text-action" data-action="checkin" data-appointment-id="${appointment.id}">签到</button>`
-  if (appointment.status === '已签到') return `<button class="text-action" data-action="status" data-next-status="候诊中" data-appointment-id="${appointment.id}">进入候诊</button>`
-  if (appointment.status === '候诊中') return `<button class="text-action" data-action="status" data-next-status="制作中" data-appointment-id="${appointment.id}">开始制作</button>`
+  if (appointment.status === '待排期') return `<button class="text-action" data-action="checkin" data-appointment-id="${appointment.id}">加入排期</button>`
+  if (appointment.status === '已排期') return `<button class="text-action" data-action="status" data-next-status="待制作" data-appointment-id="${appointment.id}">确认排期</button>`
+  if (appointment.status === '待制作') return `<button class="text-action" data-action="status" data-next-status="制作中" data-appointment-id="${appointment.id}">开始制作</button>`
   if (appointment.status === '制作中') return `<button class="text-action" data-action="status" data-next-status="已完成" data-appointment-id="${appointment.id}">完成制作</button>`
   return '<button class="text-action" data-toast="该选题已完成，无需重复操作">查看详情</button>'
 }
@@ -96,11 +96,11 @@ function render() {
 }
 
 function overview() {
-  return `<section class="metrics"><article class="metric dark"><span>今日选题</span><strong>${dashboard.todayAppointments}</strong><small>↗ 较昨日 +14.6%</small></article><article class="metric"><span>平均候诊</span><strong>${dashboard.averageWaitMinutes}<small> 分钟</small></strong><small class="good">较上周 -3 分钟</small></article><article class="metric"><span>今日完成</span><strong>${dashboard.completed}<small> 人次</small></strong><div class="progress"><i style="width:68%"></i></div></article><article class="metric warm"><span>待复盘</span><strong>${dashboard.pendingFollowups}<small> 条</small></strong><small class="coral">今日需完成</small></article></section><section class="grid"><article class="panel calendar"><div class="panel-head"><div><h2>今日选题队列</h2><p>7 月 16 日 · 周四 · 共 ${dashboard.todayAppointments} 位创作者</p></div><button class="link" data-page="queue">查看队列 →</button></div><div class="timeline">${appointments.slice(0, 4).map((appointment) => `<div class="time-row"><span>${timeLabel(appointment.scheduledAt)}</span><i class="time-dot ${statusColors[appointment.status] || 'indigo'}"></i><div><strong>${appointment.patient}</strong><small>${appointment.department} · ${appointment.status}</small></div><b class="status ${statusColors[appointment.status] || 'indigo'}">${appointment.status}</b></div>`).join('')}</div></article><article class="panel"><div class="panel-head"><div><h2>科室制作负载</h2><p>当前时段排班利用率</p></div><button class="link" data-page="doctors">排班管理 →</button></div><div class="load-list">${[['全科门诊', '32 / 40', '80%', 'indigo'], ['皮肤科', '18 / 24', '75%', 'coral'], ['康复理疗', '12 / 18', '67%', 'green'], ['营养咨询', '8 / 12', '66%', 'amber']].map((item) => `<div class="load"><div><strong>${item[0]}</strong><span>${item[1]}</span></div><div class="load-bar"><i class="${item[3]}" style="width:${item[2]}"></i></div><b>${item[2]}</b></div>`).join('')}</div></article></section><section class="grid lower"><article class="panel"><div class="panel-head"><div><h2>复盘完成趋势</h2><p>近 7 日任务完成率</p></div><span class="legend">本周平均 84%</span></div><div class="spark"><i style="height:38%"></i><i style="height:58%"></i><i style="height:46%"></i><i style="height:74%"></i><i style="height:66%"></i><i style="height:88%"></i><i class="today" style="height:80%"></i></div><div class="days"><span>周五</span><span>周六</span><span>周日</span><span>周一</span><span>周二</span><span>周三</span><span>今天</span></div></article><article class="panel tasks"><div class="panel-head"><div><h2>待办提醒</h2><p>需要运营人员跟进的事项</p></div></div><div class="task"><span class="task-icon coral">!</span><div><strong>3 位创作者需要改约</strong><small>选题队列 · 10 分钟前</small></div><button data-page="queue">处理</button></div><div class="task"><span class="task-icon amber">✓</span><div><strong>${dashboard.pendingFollowups} 条复盘今日到期</strong><small>健康复盘 · 32 分钟前</small></div><button data-page="followups">查看</button></div></article></section>`
+  return `<section class="metrics"><article class="metric dark"><span>今日选题</span><strong>${dashboard.todayAppointments}</strong><small>↗ 较昨日 +14.6%</small></article><article class="metric"><span>平均制作周转</span><strong>${dashboard.averageWaitMinutes}<small> 小时</small></strong><small class="good">较上周 -3 小时</small></article><article class="metric"><span>今日发布</span><strong>${dashboard.completed}<small> 条</small></strong><div class="progress"><i style="width:68%"></i></div></article><article class="metric warm"><span>待复盘</span><strong>${dashboard.pendingFollowups}<small> 条</small></strong><small class="coral">今日需完成</small></article></section><section class="grid"><article class="panel calendar"><div class="panel-head"><div><h2>今日选题队列</h2><p>7 月 16 日 · 周四 · 共 ${dashboard.todayAppointments} 条内容</p></div><button class="link" data-page="queue">查看队列 →</button></div><div class="timeline">${appointments.slice(0, 4).map((appointment) => `<div class="time-row"><span>${timeLabel(appointment.scheduledAt)}</span><i class="time-dot ${statusColors[appointment.status] || 'indigo'}"></i><div><strong>${appointment.patient}</strong><small>${appointment.department} · ${appointment.status}</small></div><b class="status ${statusColors[appointment.status] || 'indigo'}">${appointment.status}</b></div>`).join('')}</div></article><article class="panel"><div class="panel-head"><div><h2>内容渠道负载</h2><p>当前时段排期利用率</p></div><button class="link" data-page="doctors">排班管理 →</button></div><div class="load-list">${[['短视频', '32 / 40', '80%', 'indigo'], ['图文专栏', '18 / 24', '75%', 'coral'], ['直播栏目', '12 / 18', '67%', 'green'], ['品牌合作', '8 / 12', '66%', 'amber']].map((item) => `<div class="load"><div><strong>${item[0]}</strong><span>${item[1]}</span></div><div class="load-bar"><i class="${item[3]}" style="width:${item[2]}"></i></div><b>${item[2]}</b></div>`).join('')}</div></article></section><section class="grid lower"><article class="panel"><div class="panel-head"><div><h2>复盘完成趋势</h2><p>近 7 日任务完成率</p></div><span class="legend">本周平均 84%</span></div><div class="spark"><i style="height:38%"></i><i style="height:58%"></i><i style="height:46%"></i><i style="height:74%"></i><i style="height:66%"></i><i style="height:88%"></i><i class="today" style="height:80%"></i></div><div class="days"><span>周五</span><span>周六</span><span>周日</span><span>周一</span><span>周二</span><span>周三</span><span>今天</span></div></article><article class="panel tasks"><div class="panel-head"><div><h2>待办提醒</h2><p>需要运营人员跟进的事项</p></div></div><div class="task"><span class="task-icon coral">!</span><div><strong>3 个选题需要补充素材</strong><small>选题队列 · 10 分钟前</small></div><button data-page="queue">处理</button></div><div class="task"><span class="task-icon amber">✓</span><div><strong>${dashboard.pendingFollowups} 条复盘今日到期</strong><small>内容复盘 · 32 分钟前</small></div><button data-page="followups">查看</button></div></article></section>`
 }
 
 function queue() {
-  return `<section class="panel full"><div class="panel-head"><div><h2>选题队列</h2><p>${dataSource === 'API 数据' ? 'API 实时选题' : '20 条演示选题'} · 支持签到、候诊、制作和完成</p></div><span class="chip">今天　⌄</span></div><div class="table"><div class="th"><span>选题编号 / 创作者</span><span>科室</span><span>时间</span><span>状态</span><span>操作</span></div>${appointments.concat(dataSource === 'API 数据' ? [] : appointments.slice(0, 3)).map((appointment) => `<div class="tr"><span><strong>${appointment.id}</strong><small>${appointment.patient}</small></span><span>${appointment.department}</span><span>${timeLabel(appointment.scheduledAt)}</span><b class="status ${statusColors[appointment.status] || 'indigo'}">${appointment.status}</b><span>${appointmentAction(appointment)}</span></div>`).join('')}</div></section>`
+  return `<section class="panel full"><div class="panel-head"><div><h2>选题队列</h2><p>${dataSource === 'API 数据' ? 'API 实时选题' : '20 条演示选题'} · 支持排期、制作、发布和复盘</p></div><span class="chip">今天　⌄</span></div><div class="table"><div class="th"><span>选题编号 / 创作者</span><span>内容渠道</span><span>时间</span><span>状态</span><span>操作</span></div>${appointments.concat(dataSource === 'API 数据' ? [] : appointments.slice(0, 3)).map((appointment) => `<div class="tr"><span><strong>${appointment.id}</strong><small>${appointment.patient}</small></span><span>${appointment.department}</span><span>${timeLabel(appointment.scheduledAt)}</span><b class="status ${statusColors[appointment.status] || 'indigo'}">${appointment.status}</b><span>${appointmentAction(appointment)}</span></div>`).join('')}</div></section>`
 }
 
 function doctors() {
@@ -182,10 +182,10 @@ async function completeFollowup(button) {
 
 async function createAppointment() {
   try {
-    const created = await api.createAppointment({ patient: '移动端演示创作者', patientId: 'PT-MOBILE-DEMO', department: '全科门诊', doctor: '林编辑', scheduledAt: new Date().toISOString() })
+    const created = await api.createAppointment({ patient: '移动端演示选题', patientId: 'CR-MOBILE-DEMO', department: '短视频', doctor: '林编辑', scheduledAt: new Date().toISOString() })
     appointments = [normalizeAppointment(created), ...appointments]
     dataSource = 'API 数据'
-    showToast('选题已创建，可继续在移动端完成签到')
+    showToast('选题已创建，可继续在移动端完成排期')
   } catch (error) {
     dataSource = '演示数据'
     showToast(`API 暂不可用，保留演示选题：${error.message}`)

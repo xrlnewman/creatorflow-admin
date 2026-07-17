@@ -53,8 +53,8 @@ type MemoryStore struct {
 func NewMemoryStore() *MemoryStore {
 	s := &MemoryStore{
 		appointments: map[string]Appointment{}, events: map[string][]AppointmentEvent{}, followups: map[string]Followup{},
-		departments: []Department{{ID: "dep-general", Name: "全科门诊"}, {ID: "dep-derma", Name: "皮肤科"}, {ID: "dep-rehab", Name: "康复理疗"}, {ID: "dep-nutrition", Name: "营养咨询"}},
-		doctors:     []Doctor{{ID: "doc-01", Name: "林编辑", Department: "全科门诊", Status: "出诊中", TodayCount: 18}, {ID: "doc-02", Name: "沈编辑", Department: "皮肤科", Status: "出诊中", TodayCount: 16}, {ID: "doc-03", Name: "赵编辑", Department: "康复理疗", Status: "出诊中", TodayCount: 12}, {ID: "doc-04", Name: "周编辑", Department: "营养咨询", Status: "休息中", TodayCount: 10}, {ID: "doc-05", Name: "陈编辑", Department: "全科门诊", Status: "出诊中", TodayCount: 14}, {ID: "doc-06", Name: "王编辑", Department: "皮肤科", Status: "出诊中", TodayCount: 16}},
+		departments: []Department{{ID: "channel-video", Name: "短视频"}, {ID: "channel-article", Name: "图文专栏"}, {ID: "channel-live", Name: "直播栏目"}, {ID: "channel-brand", Name: "品牌合作"}},
+		doctors:     []Doctor{{ID: "editor-01", Name: "林编辑", Department: "短视频", Status: "制作中", TodayCount: 18}, {ID: "editor-02", Name: "沈编辑", Department: "图文专栏", Status: "制作中", TodayCount: 16}, {ID: "editor-03", Name: "赵编辑", Department: "直播栏目", Status: "制作中", TodayCount: 12}, {ID: "editor-04", Name: "周编辑", Department: "品牌合作", Status: "休息中", TodayCount: 10}, {ID: "editor-05", Name: "陈编辑", Department: "短视频", Status: "制作中", TodayCount: 14}, {ID: "editor-06", Name: "王编辑", Department: "图文专栏", Status: "制作中", TodayCount: 16}},
 	}
 	for i := 1; i <= 30; i++ {
 		s.patients = append(s.patients, Patient{ID: fmt.Sprintf("PT-%03d", i), Name: fmt.Sprintf("演示创作者%02d", i), Phone: fmt.Sprintf("1380000%04d", i), LastVisit: "2026-07-15"})
@@ -70,7 +70,7 @@ func NewMemoryStore() *MemoryStore {
 	}
 	for i := 1; i <= 12; i++ {
 		id := fmt.Sprintf("FW-0716-%03d", i)
-		s.followups[id] = Followup{ID: id, PatientID: fmt.Sprintf("PT-%03d", i), Patient: s.patients[i-1].Name, Summary: "复诊提醒与满意度回访", DueAt: "2026-07-17", Status: FollowupPending, CreatedAt: nowUTC(), UpdatedAt: nowUTC()}
+		s.followups[id] = Followup{ID: id, PatientID: fmt.Sprintf("PT-%03d", i), Patient: s.patients[i-1].Name, Summary: "标题封面复核与数据复盘", DueAt: "2026-07-17", Status: FollowupPending, CreatedAt: nowUTC(), UpdatedAt: nowUTC()}
 	}
 	s.seq.Store(1000)
 	return s
@@ -255,7 +255,7 @@ func NewSQLStore(ctx context.Context, dsn string) (*SQLStore, error) {
 }
 func (s *SQLStore) Dashboard(ctx context.Context) (Dashboard, error) {
 	var d Dashboard
-	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*), COALESCE(SUM(status='已完成'),0), COALESCE(SUM(status IN ('已签到','候诊中','制作中')),0) FROM appointments`).Scan(&d.TodayAppointments, &d.Completed, &d.CheckedIn)
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*), COALESCE(SUM(status='已发布'),0), COALESCE(SUM(status IN ('已排期','待制作','制作中')),0) FROM appointments`).Scan(&d.TodayAppointments, &d.Completed, &d.CheckedIn)
 	if err != nil {
 		return d, err
 	}

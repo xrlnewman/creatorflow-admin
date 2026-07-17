@@ -10,11 +10,11 @@ func TestAppointmentStatusTransitions(t *testing.T) {
 	store := NewMemoryStore()
 	svc := NewCareService(store, NoopIdempotency{})
 	ctx := context.Background()
-	appointment, err := svc.CreateAppointment(ctx, CreateAppointmentInput{Patient: "林晓雨", Department: "全科门诊", Doctor: "林编辑", ScheduledAt: "2026-07-16T09:00:00+08:00"}, "create-1")
+	appointment, err := svc.CreateAppointment(ctx, CreateAppointmentInput{Patient: "选题《城市夜行》", Department: "短视频", Doctor: "林编辑", ScheduledAt: "2026-07-16T09:00:00+08:00"}, "create-1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	steps := []string{"已签到", "候诊中", "制作中", "已完成"}
+	steps := []string{"已排期", "待制作", "制作中", "已发布"}
 	for _, status := range steps {
 		appointment, err = svc.UpdateAppointmentStatus(ctx, appointment.ID, status, "status-"+status)
 		if err != nil {
@@ -48,7 +48,7 @@ func TestAppointmentWriteRequiresIdempotencyKey(t *testing.T) {
 func TestAppointmentWriteIsIdempotent(t *testing.T) {
 	store := NewMemoryStore()
 	svc := NewCareService(store, NoopIdempotency{})
-	input := CreateAppointmentInput{Patient: "赵可心", Department: "皮肤科", Doctor: "沈编辑"}
+	input := CreateAppointmentInput{Patient: "选题《一周好物》", Department: "图文专栏", Doctor: "沈编辑"}
 	a, err := svc.CreateAppointment(context.Background(), input, "same-key")
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +65,7 @@ func TestAppointmentWriteIsIdempotent(t *testing.T) {
 func TestFollowupCompletesOnce(t *testing.T) {
 	store := NewMemoryStore()
 	svc := NewCareService(store, NoopIdempotency{})
-	followup, err := store.CreateFollowup(context.Background(), Followup{Patient: "林晓雨", Summary: "术后回访"})
+	followup, err := store.CreateFollowup(context.Background(), Followup{Patient: "选题《城市夜行》", Summary: "标题封面复核"})
 	if err != nil {
 		t.Fatal(err)
 	}
