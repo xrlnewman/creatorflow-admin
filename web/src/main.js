@@ -229,10 +229,18 @@ async function selectContent(id) {
   try {
     const detail = await api.getContentItem(id)
     replaceContent(detail)
+    await refreshContentEvents(id)
   } catch {
     // Keep deterministic demo detail when the API is unavailable.
   }
   render()
+}
+
+async function refreshContentEvents(id) {
+  const result = await api.listContentEvents(id)
+  const events = Array.isArray(result?.list) ? result.list : []
+  contentItems = contentItems.map((item) => item.id === id ? { ...item, events } : item)
+  return events
 }
 
 async function createContentItem() {
@@ -263,20 +271,24 @@ async function contentAction(element) {
       const body = document.querySelector('[data-content-script]')?.value?.trim()
       if (!body) return showToast('请先填写脚本内容')
       replaceContent(await api.saveContentScript(id, { body }))
+      await refreshContentEvents(id)
       showToast('脚本已保存，状态已推进')
     } else if (action === 'submit-review') {
       replaceContent(await api.submitContentReview(id, '主编'))
+      await refreshContentEvents(id)
       showToast('已提交审核队列')
     } else if (action === 'publish') {
       const publishedAt = document.querySelector('[data-content-published-at]')?.value?.trim()
       const actor = document.querySelector('[data-content-actor]')?.value?.trim()
       if (!publishedAt || !actor) return showToast('发布时间和审核人不能为空')
       replaceContent(await api.publishContent(id, { publishedAt, actor }))
+      await refreshContentEvents(id)
       showToast('内容已发布，等待数据复盘')
     } else if (action === 'metrics') {
       const values = Object.fromEntries([...document.querySelectorAll('[data-content-metric]')].map((input) => [input.dataset.contentMetric, Number(input.value)]))
       if (Object.values(values).some((value) => !Number.isFinite(value) || value < 0)) return showToast('指标不能为负数')
       replaceContent(await api.recordContentMetrics(id, values))
+      await refreshContentEvents(id)
       showToast('复盘指标已记录')
     }
     dataSource = 'API 数据'

@@ -15,4 +15,7 @@ test('CreatorFlow admin exposes Kanban filters, review queue, publish form and m
   assert.match(source,/指标时间线/)
   assert.match(source,/data-content-filter/)
   assert.match(source,/data-content-action/)
+  assert.match(source,/refreshContentEvents/)
+  assert.match(source,/listContentEvents\(id\)/)
+  assert.match(source,/event\.actor/)
 })
