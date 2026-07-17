@@ -66,6 +66,14 @@ export function createApiClient({ baseUrl, fetchImpl = globalThis.fetch } = {}) 
     listFollowups: (query) => request(withQuery('/followups', query)),
     createFollowup: (input, idempotencyKey) => request('/followups', { method: 'POST', body: input, idempotencyKey }),
     completeFollowup: (id, idempotencyKey) => request(`/followups/${encodeURIComponent(id)}/complete`, { method: 'POST', idempotencyKey }),
+    listContentItems: (query) => request(withQuery('/content-items', query)),
+    getContentItem: (id) => request(`/content-items/${encodeURIComponent(id)}`),
+    listContentEvents: (id) => request(`/content-items/${encodeURIComponent(id)}/events`),
+    createContentItem: (input, idempotencyKey) => request('/content-items', { method: 'POST', body: input, idempotencyKey }),
+    saveContentScript: (id, input, idempotencyKey) => request(`/content-items/${encodeURIComponent(id)}/script`, { method: 'POST', body: input, idempotencyKey }),
+    submitContentReview: (id, actor, idempotencyKey) => request(`/content-items/${encodeURIComponent(id)}/submit-review`, { method: 'POST', body: { actor }, idempotencyKey }),
+    publishContent: (id, input, idempotencyKey) => request(`/content-items/${encodeURIComponent(id)}/publish`, { method: 'POST', body: input, idempotencyKey }),
+    recordContentMetrics: (id, input, idempotencyKey) => request(`/content-items/${encodeURIComponent(id)}/metrics`, { method: 'POST', body: input, idempotencyKey }),
   }
 }
 

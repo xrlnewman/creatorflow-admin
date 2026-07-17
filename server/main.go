@@ -177,6 +177,96 @@ func NewRouter(store CareStore, idem idempotencyStore) *gin.Engine {
 		}
 		respond(c, http.StatusOK, f)
 	})
+	api.GET("/content-items", func(c *gin.Context) {
+		page, pageSize := pageParams(c)
+		list, total, err := store.ListContentItems(c.Request.Context(), page, pageSize, c.Query("status"), c.Query("owner"), c.Query("plannedAt"), c.Query("publishedAt"))
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		respond(c, http.StatusOK, pageData(list, total, page, pageSize))
+	})
+	api.GET("/content-items/:id/events", func(c *gin.Context) {
+		events, err := store.ListContentEvents(c.Request.Context(), c.Param("id"))
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		respond(c, http.StatusOK, gin.H{"list": events, "total": len(events)})
+	})
+	api.GET("/content-items/:id", func(c *gin.Context) {
+		item, err := store.GetContentItem(c.Request.Context(), c.Param("id"))
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		respond(c, http.StatusOK, item)
+	})
+	api.POST("/content-items", func(c *gin.Context) {
+		var input CreateContentItemInput
+		if err := c.ShouldBindJSON(&input); err != nil {
+			fail(c, errors.Join(ErrInvalidInput, err))
+			return
+		}
+		item, err := svc.CreateContentItem(c.Request.Context(), input, c.GetHeader("Idempotency-Key"))
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		respond(c, http.StatusCreated, item)
+	})
+	api.POST("/content-items/:id/script", func(c *gin.Context) {
+		var input SaveContentScriptInput
+		if err := c.ShouldBindJSON(&input); err != nil {
+			fail(c, errors.Join(ErrInvalidInput, err))
+			return
+		}
+		item, err := svc.SaveContentScript(c.Request.Context(), c.Param("id"), input, c.GetHeader("Idempotency-Key"))
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		respond(c, http.StatusOK, item)
+	})
+	api.POST("/content-items/:id/submit-review", func(c *gin.Context) {
+		var input SubmitContentReviewInput
+		if err := c.ShouldBindJSON(&input); err != nil {
+			fail(c, errors.Join(ErrInvalidInput, err))
+			return
+		}
+		item, err := svc.SubmitContentReview(c.Request.Context(), c.Param("id"), input.Actor, c.GetHeader("Idempotency-Key"))
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		respond(c, http.StatusOK, item)
+	})
+	api.POST("/content-items/:id/publish", func(c *gin.Context) {
+		var input PublishContentInput
+		if err := c.ShouldBindJSON(&input); err != nil {
+			fail(c, errors.Join(ErrInvalidInput, err))
+			return
+		}
+		item, err := svc.PublishContent(c.Request.Context(), c.Param("id"), input, c.GetHeader("Idempotency-Key"))
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		respond(c, http.StatusOK, item)
+	})
+	api.POST("/content-items/:id/metrics", func(c *gin.Context) {
+		var input RecordContentMetricsInput
+		if err := c.ShouldBindJSON(&input); err != nil {
+			fail(c, errors.Join(ErrInvalidInput, err))
+			return
+		}
+		item, err := svc.RecordContentMetrics(c.Request.Context(), c.Param("id"), input, c.GetHeader("Idempotency-Key"))
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		respond(c, http.StatusOK, item)
+	})
 	return r
 }
 

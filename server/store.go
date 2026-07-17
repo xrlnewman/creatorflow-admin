@@ -36,23 +36,34 @@ type CareStore interface {
 	ListFollowups(context.Context, int, int, string) ([]Followup, int, error)
 	CreateFollowup(context.Context, Followup) (Followup, error)
 	CompleteFollowup(context.Context, string) (Followup, error)
+	ListContentItems(context.Context, int, int, string, string, string, string) ([]ContentItem, int, error)
+	GetContentItem(context.Context, string) (ContentItem, error)
+	ListContentEvents(context.Context, string) ([]ContentEvent, error)
+	CreateContentItem(context.Context, ContentItem) (ContentItem, error)
+	SaveContentScript(context.Context, string, ContentScript) (ContentItem, error)
+	SubmitContentReview(context.Context, string, string) (ContentItem, error)
+	PublishContent(context.Context, string, PublishRecord) (ContentItem, error)
+	RecordContentMetrics(context.Context, string, ContentMetrics) (ContentItem, error)
 }
 
 // MemoryStore is deterministic and dependency-free for unit tests and demos.
 type MemoryStore struct {
-	mu           sync.RWMutex
-	seq          atomic.Uint64
-	appointments map[string]Appointment
-	events       map[string][]AppointmentEvent
-	followups    map[string]Followup
-	departments  []Department
-	doctors      []Doctor
-	patients     []Patient
+	mu            sync.RWMutex
+	seq           atomic.Uint64
+	appointments  map[string]Appointment
+	events        map[string][]AppointmentEvent
+	followups     map[string]Followup
+	departments   []Department
+	doctors       []Doctor
+	patients      []Patient
+	contentItems  map[string]ContentItem
+	contentEvents map[string][]ContentEvent
 }
 
 func NewMemoryStore() *MemoryStore {
 	s := &MemoryStore{
 		appointments: map[string]Appointment{}, events: map[string][]AppointmentEvent{}, followups: map[string]Followup{},
+		contentItems: map[string]ContentItem{}, contentEvents: map[string][]ContentEvent{},
 		departments: []Department{{ID: "channel-video", Name: "短视频"}, {ID: "channel-article", Name: "图文专栏"}, {ID: "channel-live", Name: "直播栏目"}, {ID: "channel-brand", Name: "品牌合作"}},
 		doctors:     []Doctor{{ID: "editor-01", Name: "林编辑", Department: "短视频", Status: "制作中", TodayCount: 18}, {ID: "editor-02", Name: "沈编辑", Department: "图文专栏", Status: "制作中", TodayCount: 16}, {ID: "editor-03", Name: "赵编辑", Department: "直播栏目", Status: "制作中", TodayCount: 12}, {ID: "editor-04", Name: "周编辑", Department: "品牌合作", Status: "休息中", TodayCount: 10}, {ID: "editor-05", Name: "陈编辑", Department: "短视频", Status: "制作中", TodayCount: 14}, {ID: "editor-06", Name: "王编辑", Department: "图文专栏", Status: "制作中", TodayCount: 16}},
 	}
@@ -73,6 +84,7 @@ func NewMemoryStore() *MemoryStore {
 		s.followups[id] = Followup{ID: id, PatientID: fmt.Sprintf("PT-%03d", i), Patient: s.patients[i-1].Name, Summary: "标题封面复核与数据复盘", DueAt: "2026-07-17", Status: FollowupPending, CreatedAt: nowUTC(), UpdatedAt: nowUTC()}
 	}
 	s.seq.Store(1000)
+	seedContentItems(s)
 	return s
 }
 

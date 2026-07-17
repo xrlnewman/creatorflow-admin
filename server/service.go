@@ -183,6 +183,161 @@ func validAppointmentStatus(status string) bool {
 	return false
 }
 
+// CreateContentItem validates and creates a topic with an idempotent request key.
+func (s *CareService) CreateContentItem(ctx context.Context, input CreateContentItemInput, key string) (ContentItem, error) {
+	if strings.TrimSpace(key) == "" {
+		return ContentItem{}, ErrMissingIdempotencyKey
+	}
+	if strings.TrimSpace(input.Title) == "" || strings.TrimSpace(input.Channel) == "" || strings.TrimSpace(input.Owner) == "" {
+		return ContentItem{}, fmt.Errorf("%w: title, channel and owner are required", ErrInvalidInput)
+	}
+	resourceKey := "content:create:" + key
+	if existing, ok, err := s.idem.Get(ctx, resourceKey); err != nil {
+		return ContentItem{}, err
+	} else if ok {
+		return s.store.GetContentItem(ctx, existing)
+	}
+	release, err := s.idem.Lock(ctx, "content:create-lock", 10*time.Second)
+	if err != nil {
+		return ContentItem{}, err
+	}
+	defer release()
+	if existing, ok, err := s.idem.Get(ctx, resourceKey); err != nil {
+		return ContentItem{}, err
+	} else if ok {
+		return s.store.GetContentItem(ctx, existing)
+	}
+	item, err := s.store.CreateContentItem(ctx, ContentItem{Title: strings.TrimSpace(input.Title), Channel: strings.TrimSpace(input.Channel), Owner: strings.TrimSpace(input.Owner), PlannedAt: strings.TrimSpace(input.PlannedAt), Status: ContentStatusTopic})
+	if err != nil {
+		return ContentItem{}, err
+	}
+	if err := s.idem.Set(ctx, resourceKey, item.ID, 24*time.Hour); err != nil {
+		return ContentItem{}, err
+	}
+	return item, nil
+}
+
+// SaveContentScript stores a draft and advances the topic into writing/production.
+func (s *CareService) SaveContentScript(ctx context.Context, id string, input SaveContentScriptInput, key string) (ContentItem, error) {
+	if strings.TrimSpace(key) == "" {
+		return ContentItem{}, ErrMissingIdempotencyKey
+	}
+	if strings.TrimSpace(input.Body) == "" {
+		return ContentItem{}, fmt.Errorf("%w: script body is required", ErrInvalidInput)
+	}
+	resourceKey := "content:script:" + id + ":" + key
+	if existing, ok, err := s.idem.Get(ctx, resourceKey); err != nil {
+		return ContentItem{}, err
+	} else if ok {
+		return s.store.GetContentItem(ctx, existing)
+	}
+	release, err := s.idem.Lock(ctx, "content:script-lock:"+id, 10*time.Second)
+	if err != nil {
+		return ContentItem{}, err
+	}
+	defer release()
+	if existing, ok, err := s.idem.Get(ctx, resourceKey); err != nil {
+		return ContentItem{}, err
+	} else if ok {
+		return s.store.GetContentItem(ctx, existing)
+	}
+	item, err := s.store.SaveContentScript(ctx, id, ContentScript{Body: strings.TrimSpace(input.Body)})
+	if err != nil {
+		return ContentItem{}, err
+	}
+	if err := s.idem.Set(ctx, resourceKey, item.ID, 24*time.Hour); err != nil {
+		return ContentItem{}, err
+	}
+	return item, nil
+}
+
+// SubmitContentReview moves a production-ready item into the review queue.
+func (s *CareService) SubmitContentReview(ctx context.Context, id, actor, key string) (ContentItem, error) {
+	if strings.TrimSpace(key) == "" {
+		return ContentItem{}, ErrMissingIdempotencyKey
+	}
+	if strings.TrimSpace(actor) == "" {
+		return ContentItem{}, fmt.Errorf("%w: actor is required", ErrInvalidInput)
+	}
+	resourceKey := "content:review:" + id + ":" + key
+	if existing, ok, err := s.idem.Get(ctx, resourceKey); err != nil {
+		return ContentItem{}, err
+	} else if ok {
+		return s.store.GetContentItem(ctx, existing)
+	}
+	release, err := s.idem.Lock(ctx, "content:review-lock:"+id, 10*time.Second)
+	if err != nil {
+		return ContentItem{}, err
+	}
+	defer release()
+	item, err := s.store.SubmitContentReview(ctx, id, strings.TrimSpace(actor))
+	if err != nil {
+		return ContentItem{}, err
+	}
+	if err := s.idem.Set(ctx, resourceKey, item.ID, 24*time.Hour); err != nil {
+		return ContentItem{}, err
+	}
+	return item, nil
+}
+
+// PublishContent publishes a reviewed item and records the responsible actor.
+func (s *CareService) PublishContent(ctx context.Context, id string, input PublishContentInput, key string) (ContentItem, error) {
+	if strings.TrimSpace(key) == "" {
+		return ContentItem{}, ErrMissingIdempotencyKey
+	}
+	if strings.TrimSpace(input.PublishedAt) == "" || strings.TrimSpace(input.Actor) == "" {
+		return ContentItem{}, fmt.Errorf("%w: publishedAt and actor are required", ErrInvalidInput)
+	}
+	resourceKey := "content:publish:" + id + ":" + key
+	if existing, ok, err := s.idem.Get(ctx, resourceKey); err != nil {
+		return ContentItem{}, err
+	} else if ok {
+		return s.store.GetContentItem(ctx, existing)
+	}
+	release, err := s.idem.Lock(ctx, "content:publish-lock:"+id, 10*time.Second)
+	if err != nil {
+		return ContentItem{}, err
+	}
+	defer release()
+	item, err := s.store.PublishContent(ctx, id, PublishRecord{PublishedAt: strings.TrimSpace(input.PublishedAt), Actor: strings.TrimSpace(input.Actor)})
+	if err != nil {
+		return ContentItem{}, err
+	}
+	if err := s.idem.Set(ctx, resourceKey, item.ID, 24*time.Hour); err != nil {
+		return ContentItem{}, err
+	}
+	return item, nil
+}
+
+// RecordContentMetrics validates and records post-publication counters.
+func (s *CareService) RecordContentMetrics(ctx context.Context, id string, input RecordContentMetricsInput, key string) (ContentItem, error) {
+	if strings.TrimSpace(key) == "" {
+		return ContentItem{}, ErrMissingIdempotencyKey
+	}
+	if input.Views < 0 || input.Likes < 0 || input.Comments < 0 || input.Shares < 0 {
+		return ContentItem{}, fmt.Errorf("%w: metrics cannot be negative", ErrInvalidInput)
+	}
+	resourceKey := "content:metrics:" + id + ":" + key
+	if existing, ok, err := s.idem.Get(ctx, resourceKey); err != nil {
+		return ContentItem{}, err
+	} else if ok {
+		return s.store.GetContentItem(ctx, existing)
+	}
+	release, err := s.idem.Lock(ctx, "content:metrics-lock:"+id, 10*time.Second)
+	if err != nil {
+		return ContentItem{}, err
+	}
+	defer release()
+	item, err := s.store.RecordContentMetrics(ctx, id, ContentMetrics{Views: input.Views, Likes: input.Likes, Comments: input.Comments, Shares: input.Shares})
+	if err != nil {
+		return ContentItem{}, err
+	}
+	if err := s.idem.Set(ctx, resourceKey, item.ID, 24*time.Hour); err != nil {
+		return ContentItem{}, err
+	}
+	return item, nil
+}
+
 func httpStatusForError(err error) int {
 	switch {
 	case errors.Is(err, ErrMissingIdempotencyKey), errors.Is(err, ErrInvalidInput):

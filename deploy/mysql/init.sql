@@ -49,6 +49,56 @@ CREATE TABLE IF NOT EXISTS followups (
   updated_at VARCHAR(64) NOT NULL,
   INDEX idx_followups_status_due (status, due_at)
 );
+CREATE TABLE IF NOT EXISTS content_items (
+  id VARCHAR(64) PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  channel VARCHAR(64) NOT NULL,
+  owner VARCHAR(64) NOT NULL,
+  planned_at VARCHAR(64) NOT NULL,
+  status VARCHAR(32) NOT NULL,
+  created_at VARCHAR(64) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL,
+  INDEX idx_content_items_status_plan (status, planned_at),
+  INDEX idx_content_items_owner_plan (owner, planned_at)
+);
+CREATE TABLE IF NOT EXISTS content_scripts (
+  id VARCHAR(64) PRIMARY KEY,
+  content_item_id VARCHAR(64) NOT NULL UNIQUE,
+  body TEXT NOT NULL,
+  updated_at VARCHAR(64) NOT NULL,
+  CONSTRAINT fk_content_scripts_item FOREIGN KEY (content_item_id) REFERENCES content_items(id)
+);
+CREATE TABLE IF NOT EXISTS content_publish_records (
+  id VARCHAR(64) PRIMARY KEY,
+  content_item_id VARCHAR(64) NOT NULL UNIQUE,
+  published_at VARCHAR(64) NOT NULL,
+  actor VARCHAR(64) NOT NULL,
+  created_at VARCHAR(64) NOT NULL,
+  INDEX idx_content_publish_time (published_at),
+  CONSTRAINT fk_content_publish_item FOREIGN KEY (content_item_id) REFERENCES content_items(id)
+);
+CREATE TABLE IF NOT EXISTS content_metrics (
+  id VARCHAR(64) PRIMARY KEY,
+  content_item_id VARCHAR(64) NOT NULL UNIQUE,
+  views BIGINT NOT NULL DEFAULT 0,
+  likes BIGINT NOT NULL DEFAULT 0,
+  comments BIGINT NOT NULL DEFAULT 0,
+  shares BIGINT NOT NULL DEFAULT 0,
+  recorded_at VARCHAR(64) NOT NULL,
+  CONSTRAINT chk_content_metrics_non_negative CHECK (views >= 0 AND likes >= 0 AND comments >= 0 AND shares >= 0),
+  CONSTRAINT fk_content_metrics_item FOREIGN KEY (content_item_id) REFERENCES content_items(id)
+);
+CREATE TABLE IF NOT EXISTS content_events (
+  id VARCHAR(64) PRIMARY KEY,
+  content_item_id VARCHAR(64) NOT NULL,
+  from_status VARCHAR(32) NOT NULL DEFAULT '',
+  to_status VARCHAR(32) NOT NULL,
+  action VARCHAR(64) NOT NULL,
+  actor VARCHAR(64) NOT NULL,
+  created_at VARCHAR(64) NOT NULL,
+  INDEX idx_content_events_item_time (content_item_id, created_at),
+  CONSTRAINT fk_content_events_item FOREIGN KEY (content_item_id) REFERENCES content_items(id)
+);
 
 INSERT IGNORE INTO departments (id,name) VALUES
  ('dep-video','短视频'),('dep-article','图文专栏'),('dep-live','直播栏目'),('dep-brand','品牌合作');
@@ -98,3 +148,31 @@ INSERT IGNORE INTO followups (id,patient_id,patient_name,summary,due_at,status,c
  ('RV-0716-010','PT-010','演示创作者10','内容质量抽检','2026-07-21','待完成','2026-07-16T00:00:00Z','2026-07-16T00:00:00Z'),
  ('RV-0716-011','PT-011','演示创作者11','发布节奏复盘','2026-07-22','待完成','2026-07-16T00:00:00Z','2026-07-16T00:00:00Z'),
  ('RV-0716-012','PT-012','演示创作者12','粉丝增长复盘','2026-07-22','待完成','2026-07-16T00:00:00Z','2026-07-16T00:00:00Z');
+INSERT IGNORE INTO content_items (id,title,channel,owner,planned_at,status,created_at,updated_at) VALUES
+ ('CF-0718-001','城市夜行：下班后的十五分钟','短视频','林编辑','2026-07-18T09:00:00+08:00','待选题','2026-07-16T00:00:00Z','2026-07-16T00:00:00Z'),
+ ('CF-0718-002','一周好物：把桌面整理成工作流','图文专栏','沈编辑','2026-07-18T10:00:00+08:00','写作中','2026-07-16T00:00:00Z','2026-07-16T02:00:00Z'),
+ ('CF-0718-003','品牌访谈：小店如何留住老客','直播栏目','赵编辑','2026-07-18T14:00:00+08:00','制作中','2026-07-16T00:00:00Z','2026-07-16T03:00:00Z'),
+ ('CF-0718-004','夏日直播：创作者增长公开课','品牌合作','周编辑','2026-07-18T16:00:00+08:00','待审核','2026-07-16T00:00:00Z','2026-07-16T04:00:00Z'),
+ ('CF-0718-005','通勤装备：轻量化出行清单','短视频','林编辑','2026-07-18T18:00:00+08:00','已发布','2026-07-16T00:00:00Z','2026-07-16T05:00:00Z'),
+ ('CF-0718-006','一张图读懂内容复盘','图文专栏','沈编辑','2026-07-19T09:00:00+08:00','已复盘','2026-07-16T00:00:00Z','2026-07-16T06:00:00Z');
+INSERT IGNORE INTO content_scripts (id,content_item_id,body,updated_at) VALUES
+ ('CF-0718-002-SCRIPT','CF-0718-002','开场钩子、三段主体和结尾行动号召。','2026-07-16T02:00:00Z'),
+ ('CF-0718-003-SCRIPT','CF-0718-003','开场钩子、三段主体和结尾行动号召。','2026-07-16T03:00:00Z'),
+ ('CF-0718-004-SCRIPT','CF-0718-004','开场钩子、三段主体和结尾行动号召。','2026-07-16T04:00:00Z'),
+ ('CF-0718-005-SCRIPT','CF-0718-005','开场钩子、三段主体和结尾行动号召。','2026-07-16T05:00:00Z'),
+ ('CF-0718-006-SCRIPT','CF-0718-006','开场钩子、三段主体和结尾行动号召。','2026-07-16T06:00:00Z');
+INSERT IGNORE INTO content_publish_records (id,content_item_id,published_at,actor,created_at) VALUES
+ ('CF-0718-005-PUB','CF-0718-005','2026-07-18T18:00:00+08:00','主编','2026-07-16T05:00:00Z'),
+ ('CF-0718-006-PUB','CF-0718-006','2026-07-18T18:00:00+08:00','主编','2026-07-16T06:00:00Z');
+INSERT IGNORE INTO content_metrics (id,content_item_id,views,likes,comments,shares,recorded_at) VALUES
+ ('CF-0718-006-METRIC','CF-0718-006',12480,892,67,141,'2026-07-16T06:30:00Z');
+INSERT IGNORE INTO content_events (id,content_item_id,from_status,to_status,action,actor,created_at) VALUES
+ ('CF-0718-001-EV-1','CF-0718-001','','待选题','create','林编辑','2026-07-16T00:00:00Z'),
+ ('CF-0718-002-EV-1','CF-0718-002','','待选题','create','沈编辑','2026-07-16T00:00:00Z'),
+ ('CF-0718-002-EV-2','CF-0718-002','待选题','写作中','write_script','沈编辑','2026-07-16T02:00:00Z'),
+ ('CF-0718-003-EV-1','CF-0718-003','','待选题','create','赵编辑','2026-07-16T00:00:00Z'),
+ ('CF-0718-003-EV-2','CF-0718-003','待选题','写作中','write_script','赵编辑','2026-07-16T01:00:00Z'),
+ ('CF-0718-003-EV-3','CF-0718-003','写作中','制作中','start_production','赵编辑','2026-07-16T03:00:00Z'),
+ ('CF-0718-004-EV-1','CF-0718-004','制作中','待审核','submit_review','周编辑','2026-07-16T04:00:00Z'),
+ ('CF-0718-005-EV-1','CF-0718-005','待审核','已发布','publish','主编','2026-07-16T05:00:00Z'),
+ ('CF-0718-006-EV-1','CF-0718-006','已发布','已复盘','record_metrics','运营人员','2026-07-16T06:30:00Z');

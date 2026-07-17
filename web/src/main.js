@@ -1,4 +1,5 @@
 import './styles.css'
+import './content-workspace.css'
 import { createApiClient } from './api.js'
 
 const api = createApiClient()
@@ -18,10 +19,20 @@ const demoFollowups = [
   { id: 'RV-0715-009', patient: '选题《城市观察》', summary: '评论区复盘记录', dueAt: '已完成', status: '已完成' },
 ]
 
+const demoContentItems = [
+  { id: 'CF-0718-001', title: '城市夜行：下班后的十五分钟', channel: '短视频', owner: '林编辑', plannedAt: '2026-07-18T09:00:00+08:00', status: '待选题' },
+  { id: 'CF-0718-002', title: '一周好物：把桌面整理成工作流', channel: '图文专栏', owner: '沈编辑', plannedAt: '2026-07-18T10:00:00+08:00', status: '写作中', script: { body: '开场钩子、三段主体和结尾行动号召。' } },
+  { id: 'CF-0718-003', title: '品牌访谈：小店如何留住老客', channel: '直播栏目', owner: '赵编辑', plannedAt: '2026-07-18T14:00:00+08:00', status: '制作中', script: { body: '开场钩子、三段主体和结尾行动号召。' } },
+  { id: 'CF-0718-004', title: '夏日直播：创作者增长公开课', channel: '品牌合作', owner: '周编辑', plannedAt: '2026-07-18T16:00:00+08:00', status: '待审核', script: { body: '公开课流程、嘉宾串词与观众互动问题。' } },
+  { id: 'CF-0718-005', title: '通勤装备：轻量化出行清单', channel: '短视频', owner: '林编辑', plannedAt: '2026-07-18T18:00:00+08:00', status: '已发布', publish: { publishedAt: '2026-07-18T18:00:00+08:00', actor: '主编' }, metrics: { views: 18200, likes: 920, comments: 61, shares: 140 } },
+  { id: 'CF-0718-006', title: '一张图读懂内容复盘', channel: '图文专栏', owner: '沈编辑', plannedAt: '2026-07-19T09:00:00+08:00', status: '已复盘', publish: { publishedAt: '2026-07-18T18:00:00+08:00', actor: '主编' }, metrics: { views: 12480, likes: 892, comments: 67, shares: 141 } },
+]
+
 const demoDashboard = { todayAppointments: 86, averageWaitMinutes: 12, completed: 58, checkedIn: 42, pendingFollowups: 12 }
 const statusColors = { 待排期: 'coral', 已排期: 'indigo', 待制作: 'amber', 制作中: 'green', 已发布: 'green', 已取消: 'gray' }
 const nav = [
   ['overview', '运营总览', '⌂'],
+  ['content', '内容流水线', '▦'],
   ['queue', '选题队列', '▤'],
   ['doctors', '编辑排班', '◉'],
   ['patients', '创作者档案', '♧'],
@@ -37,6 +48,12 @@ let toast = ''
 let toastTimer
 let dataSource = '演示数据'
 let isSyncing = false
+let contentItems = demoContentItems.map((item) => ({ ...item }))
+let selectedContentId = contentItems[2].id
+let contentStatusFilter = ''
+let contentOwnerFilter = ''
+let contentKeyword = ''
+let contentDraft = { script: '', publishedAt: '2026-07-18T18:00:00+08:00', actor: '主编', views: 0, likes: 0, comments: 0, shares: 0 }
 
 function timeLabel(value) {
   const match = String(value ?? '').match(/T(\d{2}:\d{2})/)
@@ -90,13 +107,64 @@ function header(title) {
 
 function render() {
   const title = nav.find((item) => item[0] === page)?.[1] || '运营总览'
-  const content = page === 'overview' ? overview() : page === 'queue' ? queue() : page === 'doctors' ? doctors() : page === 'patients' ? patients() : page === 'followups' ? followups() : mobileView()
-  document.querySelector('#app').innerHTML = `<div class="shell"><aside><div class="brand"><span>✚</span><div><strong>CreatorFlow</strong><small>创作运营中心</small></div></div><div class="clinic">● 上海静安联合创作　⌄</div><p class="caption">内容运营</p><nav>${nav.map((item) => `<button class="${page === item[0] ? 'active' : ''}" data-page="${item[0]}"><i>${item[2]}</i>${item[1]}${item[0] === 'queue' ? '<em>8</em>' : ''}</button>`).join('')}</nav><div class="user"><b>许</b><span><strong>许汝林</strong><small>运营管理员</small></span></div></aside><main>${header(title)}<section class="heading"><div><p>THURSDAY, JUL 16 · CREATORFLOW</p><h1>${title} <i>✦</i></h1><label>让每一次选题，都有被照顾的下一步。</label></div><button class="primary" data-action="create-appointment">＋ 新建选题</button></section>${content}<footer>CreatorFlow 内容排期与创作者协同 · 免费开源 · 演示数据不含诊断与真实创作者信息</footer><div class="toast" ${toast ? '' : 'hidden'}>${toast}</div></main></div>`
+  const content = page === 'overview' ? overview() : page === 'content' ? contentWorkspace() : page === 'queue' ? queue() : page === 'doctors' ? doctors() : page === 'patients' ? patients() : page === 'followups' ? followups() : mobileView()
+  document.querySelector('#app').innerHTML = `<div class="shell"><aside><div class="brand"><span>✚</span><div><strong>CreatorFlow</strong><small>创作运营中心</small></div></div><div class="clinic">● 上海静安联合创作　⌄</div><p class="caption">内容运营</p><nav>${nav.map((item) => `<button class="${page === item[0] ? 'active' : ''}" data-page="${item[0]}"><i>${item[2]}</i>${item[1]}${item[0] === 'queue' ? '<em>8</em>' : ''}</button>`).join('')}</nav><div class="user"><b>许</b><span><strong>许汝林</strong><small>运营管理员</small></span></div></aside><main>${header(title)}<section class="heading"><div><p>THURSDAY, JUL 16 · CREATORFLOW</p><h1>${title} <i>✦</i></h1><label>让每一次选题，都有被照顾的下一步。</label></div><button class="primary" data-action="create-appointment">＋ 新建选题</button></section>${content}<footer>CreatorFlow 内容排期与创作者协同 · 演示数据均为虚构内容，发布与复盘操作可在本地 API 重现</footer><div class="toast" ${toast ? '' : 'hidden'}>${toast}</div></main></div>`
   bind()
 }
 
 function overview() {
   return `<section class="metrics"><article class="metric dark"><span>今日选题</span><strong>${dashboard.todayAppointments}</strong><small>↗ 较昨日 +14.6%</small></article><article class="metric"><span>平均制作周转</span><strong>${dashboard.averageWaitMinutes}<small> 小时</small></strong><small class="good">较上周 -3 小时</small></article><article class="metric"><span>今日发布</span><strong>${dashboard.completed}<small> 条</small></strong><div class="progress"><i style="width:68%"></i></div></article><article class="metric warm"><span>待复盘</span><strong>${dashboard.pendingFollowups}<small> 条</small></strong><small class="coral">今日需完成</small></article></section><section class="grid"><article class="panel calendar"><div class="panel-head"><div><h2>今日选题队列</h2><p>7 月 16 日 · 周四 · 共 ${dashboard.todayAppointments} 条内容</p></div><button class="link" data-page="queue">查看队列 →</button></div><div class="timeline">${appointments.slice(0, 4).map((appointment) => `<div class="time-row"><span>${timeLabel(appointment.scheduledAt)}</span><i class="time-dot ${statusColors[appointment.status] || 'indigo'}"></i><div><strong>${appointment.patient}</strong><small>${appointment.department} · ${appointment.status}</small></div><b class="status ${statusColors[appointment.status] || 'indigo'}">${appointment.status}</b></div>`).join('')}</div></article><article class="panel"><div class="panel-head"><div><h2>内容渠道负载</h2><p>当前时段排期利用率</p></div><button class="link" data-page="doctors">排班管理 →</button></div><div class="load-list">${[['短视频', '32 / 40', '80%', 'indigo'], ['图文专栏', '18 / 24', '75%', 'coral'], ['直播栏目', '12 / 18', '67%', 'green'], ['品牌合作', '8 / 12', '66%', 'amber']].map((item) => `<div class="load"><div><strong>${item[0]}</strong><span>${item[1]}</span></div><div class="load-bar"><i class="${item[3]}" style="width:${item[2]}"></i></div><b>${item[2]}</b></div>`).join('')}</div></article></section><section class="grid lower"><article class="panel"><div class="panel-head"><div><h2>复盘完成趋势</h2><p>近 7 日任务完成率</p></div><span class="legend">本周平均 84%</span></div><div class="spark"><i style="height:38%"></i><i style="height:58%"></i><i style="height:46%"></i><i style="height:74%"></i><i style="height:66%"></i><i style="height:88%"></i><i class="today" style="height:80%"></i></div><div class="days"><span>周五</span><span>周六</span><span>周日</span><span>周一</span><span>周二</span><span>周三</span><span>今天</span></div></article><article class="panel tasks"><div class="panel-head"><div><h2>待办提醒</h2><p>需要运营人员跟进的事项</p></div></div><div class="task"><span class="task-icon coral">!</span><div><strong>3 个选题需要补充素材</strong><small>选题队列 · 10 分钟前</small></div><button data-page="queue">处理</button></div><div class="task"><span class="task-icon amber">✓</span><div><strong>${dashboard.pendingFollowups} 条复盘今日到期</strong><small>内容复盘 · 32 分钟前</small></div><button data-page="followups">查看</button></div></article></section>`
+}
+
+const contentStatuses = ['待选题', '写作中', '制作中', '待审核', '已发布', '已复盘']
+
+function contentStatusClass(status) {
+  return { 待选题: 'coral', 写作中: 'amber', 制作中: 'indigo', 待审核: 'purple', 已发布: 'green', 已复盘: 'blue' }[status] || 'gray'
+}
+
+function normalizeContent(item) {
+  return {
+    ...item,
+    title: item.title || '未命名选题',
+    channel: item.channel || '待配置渠道',
+    owner: item.owner || '待分配负责人',
+    plannedAt: item.plannedAt || '',
+    status: item.status || '待选题',
+    events: Array.isArray(item.events) ? item.events : [],
+  }
+}
+
+function demoContentEvents(item) {
+  const order = contentStatuses.slice(0, contentStatuses.indexOf(item.status) + 1)
+  return order.map((status, index) => ({
+    id: `${item.id}-event-${index + 1}`,
+    fromStatus: index ? order[index - 1] : '',
+    toStatus: status,
+    action: index === 0 ? 'create' : status === '已发布' ? 'publish' : status === '已复盘' ? 'record_metrics' : 'advance',
+    actor: status === '已发布' ? '主编' : item.owner,
+    createdAt: `2026-07-1${6 + Math.min(index, 3)}T0${9 + index}:00:00+08:00`,
+  }))
+}
+
+function contentWorkspace() {
+  const filtered = contentItems.filter((item) => {
+    const matchesStatus = !contentStatusFilter || item.status === contentStatusFilter
+    const matchesOwner = !contentOwnerFilter || item.owner === contentOwnerFilter
+    const matchesKeyword = !contentKeyword || `${item.title} ${item.channel} ${item.owner}`.toLowerCase().includes(contentKeyword.toLowerCase())
+    return matchesStatus && matchesOwner && matchesKeyword
+  })
+  const selected = contentItems.find((item) => item.id === selectedContentId) || filtered[0] || contentItems[0]
+  const events = (selected?.events?.length ? selected.events : demoContentEvents(selected || { id: 'demo', status: '待选题', owner: '林编辑' })).slice().sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
+  const owners = [...new Set(contentItems.map((item) => item.owner))]
+  const detail = selected ? `<article class="content-detail">
+    <div class="content-detail-head"><div><span class="status ${contentStatusClass(selected.status)}">${selected.status}</span><h2>${selected.title}</h2><p>${selected.channel} · ${selected.owner} · 计划 ${timeLabel(selected.plannedAt)}</p></div><span class="content-id">${selected.id}</span></div>
+    <div class="content-detail-grid"><div><span>脚本草稿</span><strong>${selected.script?.body ? '已填写' : '待补充'}</strong></div><div><span>发布时间</span><strong>${selected.publish?.publishedAt ? timeLabel(selected.publish.publishedAt) : '未发布'}</strong></div><div><span>阅读量</span><strong>${selected.metrics?.views?.toLocaleString?.() || '—'}</strong></div><div><span>互动率</span><strong>${selected.metrics ? `${(selected.metrics.likes + selected.metrics.comments + selected.metrics.shares).toLocaleString()} 次` : '—'}</strong></div></div>
+    ${selected.status === '待选题' || selected.status === '写作中' || selected.status === '制作中' ? `<section class="content-form"><h3>脚本编辑</h3><textarea data-content-script placeholder="补充分镜、口播与行动号召">${selected.script?.body || ''}</textarea><div class="form-actions"><button class="primary small" data-content-action="save-script" data-content-id="${selected.id}">保存脚本</button>${selected.status === '制作中' ? `<button class="secondary small" data-content-action="submit-review" data-content-id="${selected.id}">提交审核</button>` : ''}</div></section>` : ''}
+    ${selected.status === '待审核' ? `<section class="content-form"><h3>发布确认</h3><div class="form-row"><label>发布时间<input data-content-published-at value="${selected.publish?.publishedAt || contentDraft.publishedAt}" /></label><label>审核人<input data-content-actor value="${contentDraft.actor}" /></label></div><button class="primary small" data-content-action="publish" data-content-id="${selected.id}">确认发布</button></section>` : ''}
+    ${selected.status === '已发布' || selected.status === '已复盘' ? `<section class="content-form"><h3>指标复盘</h3><div class="metric-inputs"><label>阅读量<input type="number" min="0" data-content-metric="views" value="${selected.metrics?.views || contentDraft.views}" /></label><label>点赞<input type="number" min="0" data-content-metric="likes" value="${selected.metrics?.likes || contentDraft.likes}" /></label><label>评论<input type="number" min="0" data-content-metric="comments" value="${selected.metrics?.comments || contentDraft.comments}" /></label><label>分享<input type="number" min="0" data-content-metric="shares" value="${selected.metrics?.shares || contentDraft.shares}" /></label></div><button class="primary small" data-content-action="metrics" data-content-id="${selected.id}">记录复盘</button></section>` : ''}
+    <section class="content-timeline"><div class="subhead"><h3>指标时间线</h3><span>最近活动</span></div><ol>${events.map((event) => `<li><time>${timeLabel(event.createdAt)}</time><div><strong>${event.toStatus || event.action}</strong><small>${event.action} · ${event.actor || '系统'}</small></div></li>`).join('')}</ol></section>
+  </article>` : '<article class="content-detail empty">暂无匹配的内容</article>'
+  return `<section class="content-workspace"><div class="content-toolbar"><div><span class="eyebrow">CREATOR PIPELINE</span><h2>内容流水线</h2><p>从选题、脚本、审核到发布复盘，所有动作都留在同一条可追踪时间线上。</p></div><div class="toolbar-actions"><span class="fiction-note">虚构演示数据 · API 可切换</span><button class="primary small" data-content-action="create">＋ 新建选题</button></div></div><div class="content-filters"><input data-content-filter="keyword" placeholder="搜索标题、渠道或负责人" value="${contentKeyword}" /><select data-content-filter="status"><option value="">全部状态</option>${contentStatuses.map((status) => `<option value="${status}" ${contentStatusFilter === status ? 'selected' : ''}>${status}</option>`).join('')}</select><select data-content-filter="owner"><option value="">全部负责人</option>${owners.map((owner) => `<option value="${owner}" ${contentOwnerFilter === owner ? 'selected' : ''}>${owner}</option>`).join('')}</select><span class="filter-count">${filtered.length} 条内容</span></div><div class="content-board">${contentStatuses.map((status) => `<section class="content-column"><div class="column-head"><h3>${status}</h3><span>${filtered.filter((item) => item.status === status).length}</span></div>${filtered.filter((item) => item.status === status).map((item) => `<button class="content-card ${selected?.id === item.id ? 'selected' : ''}" data-content-action="select" data-content-id="${item.id}"><span class="status ${contentStatusClass(item.status)}">${item.status}</span><strong>${item.title}</strong><small>${item.channel} · ${item.owner}</small><time>${timeLabel(item.plannedAt)}</time></button>`).join('') || '<p class="column-empty">暂无内容</p>'}</section>`).join('')}</div>${detail}</section>`
 }
 
 function queue() {
@@ -124,14 +192,19 @@ async function refreshFromApi({ quiet = false } = {}) {
   isSyncing = true
   render()
   try {
-    const [nextDashboard, nextAppointments, nextFollowups] = await Promise.all([
+    const [nextDashboard, nextAppointments, nextFollowups, nextContent] = await Promise.all([
       api.getDashboard(),
       api.listAppointments({ page: 1, pageSize: 20 }),
       api.listFollowups({ page: 1, pageSize: 20 }),
+      api.listContentItems({ page: 1, pageSize: 100 }),
     ])
     dashboard = { ...demoDashboard, ...nextDashboard }
     appointments = (nextAppointments?.list || []).map(normalizeAppointment)
     followupTasks = (nextFollowups?.list || []).map(normalizeFollowup)
+    if (Array.isArray(nextContent?.list) && nextContent.list.length) {
+      contentItems = nextContent.list.map(normalizeContent)
+      selectedContentId = contentItems.find((item) => item.id === selectedContentId)?.id || contentItems[0].id
+    }
     dataSource = 'API 数据'
     if (!quiet) toast = '已从 CreatorFlow API 刷新数据'
   } catch (error) {
@@ -141,6 +214,76 @@ async function refreshFromApi({ quiet = false } = {}) {
     isSyncing = false
     render()
   }
+}
+
+function replaceContent(updated) {
+  const normalized = normalizeContent(updated)
+  contentItems = contentItems.map((item) => item.id === normalized.id ? { ...item, ...normalized } : item)
+}
+
+async function selectContent(id) {
+  selectedContentId = id
+  const local = contentItems.find((item) => item.id === id)
+  if (!local) return render()
+  render()
+  try {
+    const detail = await api.getContentItem(id)
+    replaceContent(detail)
+  } catch {
+    // Keep deterministic demo detail when the API is unavailable.
+  }
+  render()
+}
+
+async function createContentItem() {
+  const input = { title: '城市夜行：夜班人的补给站', channel: '短视频', owner: '林编辑', plannedAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() }
+  try {
+    const created = await api.createContentItem(input)
+    contentItems = [normalizeContent(created), ...contentItems]
+    selectedContentId = created.id
+    dataSource = 'API 数据'
+    showToast('选题已创建，进入写作队列')
+  } catch (error) {
+    const local = normalizeContent({ ...input, id: `CF-DEMO-${Date.now().toString().slice(-6)}`, status: '待选题' })
+    contentItems = [local, ...contentItems]
+    selectedContentId = local.id
+    showToast(`接口暂不可用，保留演示选题：${error.message}`)
+  }
+}
+
+async function contentAction(element) {
+  const action = element.dataset.contentAction
+  const id = element.dataset.contentId
+  if (action === 'select') return selectContent(id)
+  if (action === 'create') return createContentItem()
+  const item = contentItems.find((content) => content.id === id)
+  if (!item) return
+  try {
+    if (action === 'save-script') {
+      const body = document.querySelector('[data-content-script]')?.value?.trim()
+      if (!body) return showToast('请先填写脚本内容')
+      replaceContent(await api.saveContentScript(id, { body }))
+      showToast('脚本已保存，状态已推进')
+    } else if (action === 'submit-review') {
+      replaceContent(await api.submitContentReview(id, '主编'))
+      showToast('已提交审核队列')
+    } else if (action === 'publish') {
+      const publishedAt = document.querySelector('[data-content-published-at]')?.value?.trim()
+      const actor = document.querySelector('[data-content-actor]')?.value?.trim()
+      if (!publishedAt || !actor) return showToast('发布时间和审核人不能为空')
+      replaceContent(await api.publishContent(id, { publishedAt, actor }))
+      showToast('内容已发布，等待数据复盘')
+    } else if (action === 'metrics') {
+      const values = Object.fromEntries([...document.querySelectorAll('[data-content-metric]')].map((input) => [input.dataset.contentMetric, Number(input.value)]))
+      if (Object.values(values).some((value) => !Number.isFinite(value) || value < 0)) return showToast('指标不能为负数')
+      replaceContent(await api.recordContentMetrics(id, values))
+      showToast('复盘指标已记录')
+    }
+    dataSource = 'API 数据'
+  } catch (error) {
+    showToast(`接口暂不可用：${error.message}`)
+  }
+  render()
 }
 
 function replaceAppointment(updated) {
@@ -199,6 +342,13 @@ function bind() {
   }))
   document.querySelectorAll('[data-toast]').forEach((element) => element.addEventListener('click', () => showToast(element.dataset.toast)))
   document.querySelectorAll('[data-refresh]').forEach((element) => element.addEventListener('click', () => refreshFromApi()))
+  document.querySelectorAll('[data-content-filter]').forEach((element) => element.addEventListener('input', () => {
+    if (element.dataset.contentFilter === 'keyword') contentKeyword = element.value
+    if (element.dataset.contentFilter === 'status') contentStatusFilter = element.value
+    if (element.dataset.contentFilter === 'owner') contentOwnerFilter = element.value
+    render()
+  }))
+  document.querySelectorAll('[data-content-action]').forEach((element) => element.addEventListener('click', () => contentAction(element)))
   document.querySelectorAll('[data-action]').forEach((element) => element.addEventListener('click', () => {
     if (element.dataset.action === 'checkin' || element.dataset.action === 'status') return advanceAppointment(element)
     if (element.dataset.action === 'complete-followup') return completeFollowup(element)
